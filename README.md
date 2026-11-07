@@ -6,7 +6,7 @@
 
 This repository holds the **specification**, not working code yet. Developers are invited to read it, challenge it, and build against it.
 
-- Project page: https://5pm.io/cooperate/
+- Project page: https://5pm.io/coop/
 - Status: **draft, in formation.** Nothing here is audited, deployed or legal advice.
 
 ## Principles
@@ -33,7 +33,7 @@ Start with `core.md`.
 ## Getting involved
 
 - **Developers:** read [CONTRIBUTING.md](CONTRIBUTING.md), then pick up an open question in an issue. Test networks only; no real funds.
-- **Businesses, attorneys, CPAs and other founding roles:** see https://5pm.io/cooperate/.
+- **Businesses, attorneys, CPAs and other founding roles:** see https://5pm.io/coop/.
 
 ## License
 

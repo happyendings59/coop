@@ -20,7 +20,7 @@ Thanks for helping. This project builds systems that will eventually hold other 
 
 - Use public test networks and test tokens.
 - Include tests for the side paths, not just the happy path: refunds, no-shows, disputes, expired windows, sanctions blocks and valid-in rejections.
-- Security findings: please report privately to the maintainer through the contact on https://5pm.io/cooperate/ rather than opening a public issue. A paid bug bounty will follow once the project is funded.
+- Security findings: please report privately to the maintainer through the contact on https://5pm.io/coop/ rather than opening a public issue. A paid bug bounty will follow once the project is funded.
 
 ## Licensing of contributions
 
