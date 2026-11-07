@@ -1,0 +1,23 @@
+5PM Cooperative
+Copyright (C) 2026 Kenneth William Mayle
+
+LICENSING
+---------
+Software in this repository is licensed under the GNU Affero General
+Public License, version 3 (see LICENSE), with the additional term below.
+
+Specifications and documentation (everything under spec/, plus README.md,
+CONTRIBUTING.md and other prose documents) are licensed under the
+Creative Commons Attribution 4.0 International License (see LICENSE-docs,
+or https://creativecommons.org/licenses/by/4.0/).
+
+ADDITIONAL TERM UNDER SECTION 7(b) OF THE GNU AGPL v3
+-----------------------------------------------------
+Any copy or modified version of this software, including one offered to
+users over a network, must preserve the following attribution in its
+Appropriate Legal Notices, such as an About or legal screen:
+
+    "Based on 5PM by Kenneth William Mayle (https://5pm.io)"
+
+This attribution must be reasonably visible to users of the software and
+may not be removed or obscured.

@@ -1,0 +1,45 @@
+# Never commit secrets. This repository is public.
+
+# Environment and config with credentials
+.env
+.env.*
+!.env.example
+*.local
+secrets/
+config.local.*
+
+# Keys, seeds and wallets
+*.key
+*.pem
+*.p12
+*.pfx
+*.keystore
+*.wallet
+keystore/
+wallets/
+mnemonic*
+seed*.txt
+id_rsa*
+id_ed25519*
+
+# Test-network deploy artifacts that may hold private keys
+broadcast/
+deployments/*/private*
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+out/
+cache/
+coverage/
+target/
+__pycache__/
+*.pyc
+
+# Editor and OS clutter
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
