@@ -222,3 +222,44 @@ Passed votes take effect after a time-lock, so members can challenge a vote that
 ## 12. Units
 
 SI everywhere by default: stored, displayed and in every record. Viewers may switch their own display. Regulated outputs (such as US package labels requiring both metric and US customary units) are generated automatically by the jurisdiction module.
+
+---
+
+## 13. Justice and courts (exploratory)
+
+**Status:** exploratory. This section describes where the record layer could support courts and dispute resolution. Nothing here is in scope for the first release, and every item needs review by courts, bar authorities and counsel in each jurisdiction before any use.
+
+**Principle:** everyone deserves a fair trial, and a fair start. Tools in this section help people arrive prepared and help courts focus on what is actually disputed. **AI assists; humans decide.**
+
+### 13.1 Signed event records
+
+- **JC1.** Events (a delivery, a payment, an inspection, a check-in, a notice served) are recorded as they happen and signed by the parties involved, using the transaction engine and attestations (§4).
+- **JC2.** Each record's hash is anchored on-chain (§2), so any party, lawyer or court can verify it was not altered later, without trusting the operator that stored it.
+- **JC3.** Courts and clerks MAY plug in as signers (§4.1) to attest filings received, orders entered and hearings held.
+
+### 13.2 Fact ledger and stipulations
+
+- **JC4.** For a dispute, each party can mark each recorded fact as **agreed**, **disputed** or **unknown**.
+- **JC5.** Facts all parties mark as agreed become **proposed stipulations**. They are adopted only when every party (through counsel, where represented) signs them, and only take effect if the court accepts them under its own rules.
+- **JC6.** Until the dispute is resolved, agreed facts stand as stipulated so the hearing can focus on disputed ones. Withdrawing a stipulation follows the court's rules, never the platform's.
+
+### 13.3 AI assistance at intake and on filings
+
+- **JC7. Permitted uses:** plain-language explanation of notices and procedures; completeness checks before a filing is submitted; deadline and hearing reminders; translation.
+- **JC8. Prohibited uses:** deciding a case, recommending an outcome to a judge, or scoring a party's credibility or likelihood of success.
+- **JC9.** Assistance MUST stay within unauthorized-practice-of-law rules in each jurisdiction: general information and form guidance, not individualized legal advice, unless delivered by or under a licensed attorney. *Attorney and bar review.*
+- **JC10.** Any filing prepared with AI help is disclosed as such where court rules require, and the person filing remains responsible for it.
+
+### 13.4 Local AI
+
+- **JC11. Local by default.** Court-side AI runs on hardware the court controls. Case data, especially sealed or private filings, does not leave the court for an outside vendor.
+- **JC12. Logged and reviewable.** Every AI input and output used in a case is logged with the model and version, and is available to all parties on the same terms.
+- **JC13. Replaceable.** Open formats and standards, so no single vendor owns any part of the justice process.
+- **JC14. Safeguards:** a right to human review of anything AI touched; no automated adverse decisions; bias and accuracy testing published before use; accessibility for people with disabilities and limited literacy.
+- **JC15.** Sealed and private material stays encrypted to its authorized readers (§8). AI may process it only inside the court's own environment.
+
+### 13.5 Prior work to build on
+
+- Council of Europe, CEPEJ: European Ethical Charter on the use of artificial intelligence in judicial systems (2018).
+- Online tribunals, such as British Columbia's Civil Resolution Tribunal.
+- Court rules on stipulations and on disclosing AI-assisted filings, which vary by court.
