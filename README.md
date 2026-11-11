@@ -4,6 +4,15 @@
 
 5PM is an open specification for a member-owned network where independent businesses (small farms, shops, trades, restaurants, resale stores and makers) share the back office, sell together and back each other up, while each keeps its own name, customers and prices.
 
+The cooperative is the first application, but the building blocks are general public infrastructure:
+
+- **A transaction engine** for products and services: prepaid vouchers, protected escrow, refunds and verified reviews, where no operator holds anyone's money.
+- **Attestations:** courts, agencies, attorneys and notaries sign specific facts, and contracts act on them. Government bodies can plug in as signers.
+- **Property records:** stolen, lien, recall and court-order flags, each with an appeal path.
+- **An encrypted document vault:** wills and estate instructions released only to named recipients.
+- **Rules by jurisdiction:** national, state and local law as modules.
+- **Justice and courts (exploratory):** signed event records, agreed and disputed facts, and local AI that helps people at intake and on filings while humans decide.
+
 This repository holds the **specification**, not working code yet. Developers are invited to read it, challenge it, and build against it.
 
 - Project page: https://5pm.io/coop/
@@ -24,7 +33,7 @@ This repository holds the **specification**, not working code yet. Developers ar
 
 | Document | What it covers |
 | --- | --- |
-| [spec/core.md](spec/core.md) | Shared foundation: data placement, privacy, attestations, status flags and liens, escrow safety powers, jurisdiction modules, encrypted documents, chain selection, governance |
+| [spec/core.md](spec/core.md) | Shared foundation: data placement, privacy, attestations, status flags and liens, escrow safety powers, jurisdiction modules, encrypted documents, chain selection, governance, justice and courts (exploratory) |
 | [spec/cooperative.md](spec/cooperative.md) | The cooperative marketplace: the nine-step transaction engine for products and services, vouchers, side paths, scheduling, pricing, credentials and reviews, finances, roles, roadmap |
 | [spec/document-delivery.md](spec/document-delivery.md) | The 2024 NFT-backed legal document delivery platform (Cardano and Monero as candidate networks), published with a 2026 revision note |
 
