@@ -86,7 +86,22 @@ merchant refund, private (shielded) payments. Section 9 notes where these plug i
 | ERC-3009 (transferWithAuthorization) | USDC supports it; lets a relayer submit the payment, payer pays no ETH gas |
 | ERC-4337 (account abstraction, paymasters) | optional sponsored gas so a non crypto payer can pay with only USDC |
 | Escrow patterns (OpenZeppelin Escrow / pull payments, ReentrancyGuard, SafeERC20) | refunds are pull based; no loops that send money to many people |
-| Request Network | existing on chain invoicing protocol. Worth a look before we build; it covers invoices but not the "order held until a third party pays, NFT is the bill" flow. Decision for Kenny in section 11 |
+| Request Network | existing on chain invoicing protocol. Covers invoices but not the "order held until a third party pays, NFT is the bill" flow. Its code was not re-checked in the 2026-11-24 survey (3.1) |
+
+### 3.1 Reuse survey (2026-11-24)
+
+Kenny's rule: look for free, open Ethereum code before writing our own. GitHub search on
+2026-11-24; licenses as GitHub reports them.
+
+| Project | License | What it does | Decision |
+|---|---|---|---|
+| OpenZeppelin Contracts 5.x | MIT | ERC-721, EIP-712, SafeERC20, ReentrancyGuard, Ownable2Step, signature checks | **Adopted** (already the base of BillTo.sol) |
+| base/commerce-payments (Coinbase "Commerce Payments Protocol", AuthCaptureEscrow) | MIT | authorize and capture escrow, void, reclaim after expiry, refunds, token collectors for ERC-3009 and Permit2 | **Borrow the patterns, not the contract**: it is built around one payer and an operator who captures, while Bill To needs split payers, an NFT bill and buyer plus merchant release. Its ERC-3009 and Permit2 collectors are the model for the payWithPermit TODO |
+| liquity/bold (Liquity V2) | Business Source License 1.1 (changes to GPL-2.0-or-later on 2027-09-01) | the BOLD stablecoin | **Use BOLD as a token only**; do not copy its code before the change date |
+| Sablier, Superfluid | not plain open source per GitHub (NOASSERTION) | token streaming | **Not needed**: Bill To pays once, it does not stream |
+| InvoBase (invoice NFT on Base) | MIT | invoice NFT with escrowed payments | **Not adopted**: upgradeable (UUPS), which breaks core.md P2 and E6, and little review history |
+| kleros/escrow-v2 | none listed | escrow with decentralized arbitration | **Candidate arbiter** for escrow mode (open question 8); not code we copy |
+
 
 ---
 
@@ -97,7 +112,7 @@ IL = integrity level (section 8.1). "Shall" items are tested.
 ### 4.1 Functional
 | ID | Requirement | IL |
 |---|---|---|
-| F1 | A merchant shall create a bill from merchant signed EIP-712 terms: merchant, token, amount, expiry, order hash, split allowed, min contribution | 3 |
+| F1 | A merchant shall create a bill from merchant signed EIP-712 terms: merchant, buyer, offers (1 to 4 coin and price pairs), expiry, order hash, split allowed, minimum split share (basis points of the bill), settlement mode (pay at once or escrow), arbiter (escrow only), nonce | 3 |
 | F2 | The bill shall be minted as an ERC-721 to the payer address, or held by the contract against a claim key hash if the payer is a handle | 3 |
 | F3 | A claim link holder shall claim the Bill NFT to any address by signing that address with the claim key (front run safe) | 3 |
 | F4 | Anyone may pay; the Bill NFT holder is who is asked, not the only one allowed | 2 |
@@ -107,7 +122,7 @@ IL = integrity level (section 8.1). "Shall" items are tested.
 | F8 | After expiry, an unpaid bill shall become EXPIRED and contributors shall withdraw their own money (pull) | 4 |
 | F9 | Buyer or merchant shall be able to cancel an unpaid bill; contributions become withdrawable | 4 |
 | F10 | Merchant shall be able to refund a PAID bill in full; money goes back pro rata to contributors (pull) | 4 |
-| F11 | Supported tokens shall be an allowlist per deployment. The list is short on purpose: BOLD (default), USDC, Tether (USDT) and native ETH. The merchant lists which of these it accepts in the signed terms, and the payer picks one of those when paying (decided by Kenny 2026-11-23: "whatever they choose"). The current contract takes one token per bill; accepting a list is a TODO | 3 |
+| F11 | Supported tokens shall be an allowlist per deployment. The list is short on purpose: BOLD (default), USDC, Tether (USDT) and native ETH. The merchant lists which of these it accepts in the signed terms, and the payer picks one of those when paying (decided by Kenny 2026-11-23: "whatever they choose"). The first payment picks the coin; later split payments must use the same coin | 3 |
 | F12 | Sites learn status from events (`BillPaid`, `BillCancelled`, `BillExpired`, `BillRefunded`) via a watcher, never from the browser alone | 3 |
 
 ### 4.2 Non functional
@@ -151,8 +166,11 @@ choose or finalize early on the payment"). The signed terms carry one of:
 - **Escrow:** full funding moves the money into an escrow that releases when buyer and
   merchant both sign, or an independent arbiter rules (core.md E2 to E4). The parties MAY
   finalize early by both signing at any time.
-Co-op orders follow the co-op's rules for which modes a member may offer. The current
-contract implements pay at once only; escrow mode is a TODO.
+Co-op orders follow the co-op's rules for which modes a member may offer. Escrow mode
+requires an arbiter who is neither the merchant nor the buyer (core.md E3). While held,
+the bill does not expire; the merchant may refund it (payers then withdraw), and the
+arbiter may pay the merchant or refund the payers. Open: what happens if an arbiter
+disappears (no timeout is defined yet; see section 11).
 
 ### 5.3 Claim links for SimpleX, Telegram, email
 1. Site generates a throwaway keypair (claim key) in the buyer's browser.
@@ -297,12 +315,12 @@ Integrity level is set by the worst consequence of a failure.
 | User acceptance with real sites | yes | yes | yes | yes |
 
 ### 8.3 Invariants (must always hold)
-1. For every token, contract balance == sum of `funded` over OPEN bills + sum of
+1. For every token, contract balance == sum of `funded` over OPEN and HELD bills + sum of
    withdrawable balances.
 2. A bill is paid to the merchant at most once.
 3. `funded <= amount` always.
 4. A contributor can never withdraw more than they put in (or their pro rata refund).
-5. Once PAID, REFUNDED, CANCELLED or EXPIRED, no new `pay` succeeds.
+5. Once HELD, PAID, REFUNDED, CANCELLED or EXPIRED, no new `pay` succeeds.
 6. Only a valid merchant signature can create a bill for that merchant.
 
 ### 8.4 Test scenarios (validation)
@@ -330,7 +348,7 @@ Every failed test or finding gets an entry with IL, status, and fix commit.
 
 ## 10. Contract sketches
 See [`contracts/bill-to/BillTo.sol`](../contracts/bill-to/BillTo.sol) (about 250 lines).
-It compiles with solc 0.8.24 and OpenZeppelin 5.0.2. 14 tests in `contracts/bill-to/test/` pass on an in-process local chain (`npm install && npm test` in that folder; checked 2026-11-23). Not audited, not deployed. Open TODOs in the file: permit / ERC-3009 pay, tokenURI. Contract and tests were folded in from Kenny's private working repo happyendings59/billto on 2026-11-23 (his choice); this repository is now the source of truth.
+It compiles with solc 0.8.24 and OpenZeppelin 5.0.2. 22 tests in `contracts/bill-to/test/` pass on an in-process local chain (`npm install && npm test` in that folder; checked 2026-11-24). The contract compiles with `viaIR` because escrow mode added fields. Not audited, not deployed. Open TODOs in the file: permit / ERC-3009 pay, tokenURI. Contract and tests were folded in from Kenny's private working repo happyendings59/billto on 2026-11-23 (his choice); this repository is now the source of truth.
 
 ## 11. Decisions for Kenny
 1. Build our own or use Request Network as the base layer? (Recommend: our own small contract, it is about 250 lines and fits the NFT bill idea; read Request Network first.)
@@ -339,6 +357,8 @@ It compiles with solc 0.8.24 and OpenZeppelin 5.0.2. 14 tests in `contracts/bill
 4. ~~Which chain first?~~ Answered 2026-11-23: Ethereum mainnet and Polygon PoS for now (5.6).
 5. Hosted shared watcher (one for all sites) or one per site?
 6. Who is the lawyer who reviews section 7 before mainnet?
+7. Escrow mode: should a held bill have a timeout (for example, refund the payers if neither side nor the arbiter acts within N days)? None is set; an absent arbiter can leave money held.
+8. Who serves as arbiter for co-op orders (core.md §4.3 independent attestor network, or an outside service such as Kleros)?
 
 ## 12. Fit with core.md (open, needs a decision)
 
