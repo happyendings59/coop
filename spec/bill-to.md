@@ -359,7 +359,7 @@ It compiles with solc 0.8.24 and OpenZeppelin 5.0.2. 24 tests in `contracts/bill
 5. Hosted shared watcher (one for all sites) or one per site?
 6. Who is the lawyer who reviews section 7 before mainnet?
 7. ~~Escrow timeout?~~ Answered 2026-11-23: adjustable per bill, default 30 days.
-8. Who serves as arbiter for co-op orders (core.md §4.3 independent attestor network, or an outside service such as Kleros)?
+8. ~~Who arbitrates co-op orders?~~ Answered 2026-11-23 (Kenny: "could be either based on bylaws"): each co-op's bylaws choose the arbiter, either a member panel or an outside service such as Kleros. The contract already takes any arbiter address per bill, so no code change. **Default, until bylaws say otherwise:** a member panel acting through a multisig wallet (for example a Safe, 2 of 3), whose members are not the buyer or merchant in the dispute and are independent of the operator (core.md E3). Claude picked this default because it keeps disputes inside the co-op at no outside fee; the bylaws can switch to an outside service at any time.
 
 ## 12. Fit with core.md (open, needs a decision)
 
