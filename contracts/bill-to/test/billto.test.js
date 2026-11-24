@@ -59,6 +59,7 @@ async function makeTerms(over = {}) {
     splitAllowed: false,
     minContributionBps: 0,
     escrow: false,
+    escrowTimeout: 0,
     nonce: nonce++,
     ...over,
   };
@@ -68,7 +69,7 @@ async function makeTerms(over = {}) {
       { name: "merchant", type: "address" }, { name: "buyer", type: "address" }, { name: "arbiter", type: "address" },
       { name: "offers", type: "Offer[]" }, { name: "expiry", type: "uint64" }, { name: "orderHash", type: "bytes32" },
       { name: "splitAllowed", type: "bool" }, { name: "minContributionBps", type: "uint16" }, { name: "escrow", type: "bool" },
-      { name: "nonce", type: "uint256" },
+      { name: "escrowTimeout", type: "uint32" }, { name: "nonce", type: "uint256" },
     ],
     Offer: [{ name: "token", type: "address" }, { name: "amount", type: "uint256" }],
   };
@@ -332,13 +333,36 @@ test("Escrow: full funding holds the money; both sides release (finalize early);
   assert.equal(await billto.locked(id), true);
 });
 
-test("Escrow: a held bill does not expire and cannot be withdrawn or cancelled", async () => {
+test("Escrow: a held bill does not expire with the bill and cannot be withdrawn or cancelled early", async () => {
   const { id } = await createBill(esc());
   await (await pay(alice, id, U(100))).wait();
   await increaseTime(3601);
   await expectRevert(billto.connect(alice).withdraw(id), "NotExpiredOrClosed");
   await expectRevert(billto.connect(buyer).cancel(id), "NotOpen");
   assert.equal(await status(id), HELD);
+});
+
+test("Escrow timeout: default 30 days, then payers take their money back", async () => {
+  const { id } = await createBill(esc());
+  await (await pay(alice, id, U(100))).wait();
+  await increaseTime(29 * 86400);
+  await expectRevert(billto.connect(alice).withdraw(id), "NotExpiredOrClosed");
+  await increaseTime(86400 + 1);
+  const a0 = await bal(alice);
+  await (await billto.connect(alice).withdraw(id)).wait();
+  assert.equal(await status(id), REFUNDED);
+  assert.equal(await bal(alice) - a0, U(100));
+  await expectRevert(billto.connect(buyer).approveRelease(id), "NotAllowed"); // too late to release
+});
+
+test("Escrow timeout: adjustable per bill", async () => {
+  const { id } = await createBill({ ...esc(), escrowTimeout: 7 * 86400, splitAllowed: true });
+  await (await pay(alice, id, U(60))).wait();
+  await (await pay(bob, id, U(40))).wait();
+  await increaseTime(7 * 86400 + 1);
+  await (await billto.connect(bob).withdraw(id)).wait();
+  await (await billto.connect(alice).withdraw(id)).wait();
+  assert.equal(await bal(await billto.getAddress()), 0n);
 });
 
 test("Escrow: arbiter rules for the merchant, or refunds the payers; nobody else can rule", async () => {
