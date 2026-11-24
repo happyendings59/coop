@@ -115,7 +115,7 @@ IL = integrity level (section 8.1). "Shall" items are tested.
 |---|---|
 | N1 | Contract shall be non upgradeable, no owner who can move funds. Admin limited to adding tokens to the allowlist (behind a timelock or multisig) |
 | N2 | No protocol fee in v0.1 (co-op spirit). If a fee is added later it is a separate, visible field |
-| N3 | Target chains: Base and Arbitrum One (low fees, native USDC by Circle). Ethereum mainnet optional |
+| N3 | Target chains, for now: Ethereum mainnet (BOLD is native there) and Polygon PoS (low fees) (decided by Kenny 2026-11-23). Others later by the same bytecode |
 | N4 | Gas per payment target under 120k on L2 |
 | N5 | Order contents never go on chain, only the order hash |
 | N6 | Works for a payer with no ETH (permit / ERC-3009 plus optional paymaster) |
@@ -180,7 +180,11 @@ USDC or USDT bills on it are stuck. Mitigation: one contract per token per chain
 document it to users (section 7).
 
 ### 5.6 Chains
-Base and Arbitrum One first: fees of cents, native USDC. Same contract bytecode on each.
+Decision (Kenny, 2026-11-23): "for now eth mainnet with... pol." Ethereum mainnet for
+co-op bills and anything large, since BOLD is native there; Polygon PoS for small,
+frequent bills where mainnet gas would cost more than the bill. BOLD on Polygon is a
+bridged copy and carries bridge risk (cooperative.md N4). Base and Arbitrum One were the
+earlier draft's picks and stay possible later. Same contract bytecode on each.
 Bill IDs are per chain; links always carry the chain id (EIP-681 `@chainId`).
 
 ### 5.7 Site integration (the shared widget)
@@ -323,7 +327,7 @@ It compiles clean with solc 0.8.24 and OpenZeppelin 5.0.2 (checked 2026-11-23). 
 1. Build our own or use Request Network as the base layer? (Recommend: our own small contract, it is about 250 lines and fits the NFT bill idea; read Request Network first.)
 2. Pay merchant at once on full funding (this draft) or a hold window?
 3. ~~Which repo?~~ Answered 2026-11-23: it lives in this co-op repository (happyendings59/coop) as shared code.
-4. Which chain first: Base or Arbitrum?
+4. ~~Which chain first?~~ Answered 2026-11-23: Ethereum mainnet and Polygon PoS for now (5.6).
 5. Hosted shared watcher (one for all sites) or one per site?
 6. Who is the lawyer who reviews section 7 before mainnet?
 
@@ -337,7 +341,7 @@ resolved; nothing above was changed to force a fit.
 |---|---|---|---|
 | Settlement token | DECIDED 2026-11-23: BOLD default; merchant may pick USDC, USDT or ETH; no other tokens (5.5, F11) | BOLD, no freeze function; USDC is not the default (cooperative.md N1, N2) | Resolved. Note: BOLD's native network is Ethereum mainnet (cooperative.md N4), so the chain question below now matters more |
 | Release rule | merchant paid the moment the bill is fully funded (5.2) | release by party signatures or a 2-of-3 arbiter (core.md E2) | Is Bill To a pre-payment step that feeds a co-op escrow, or its own settlement path? (Ties to decision 2, hold window.) |
-| Chains | Base and Arbitrum One first (N3) | Ethereum mainnet for escrow, L2 for small records (cooperative.md N4) | Which network for co-op bills? |
+| Chains | DECIDED 2026-11-23: Ethereum mainnet and Polygon PoS for now (N3, 5.6) | Ethereum mainnet for escrow, L2 for small records; Polygon is listed (cooperative.md N4) | Resolved; matches cooperative.md N4 |
 
 The rest fits: no admin key moves funds (core.md P2, E6), order data off chain (core.md D1, D2),
 fresh addresses encouraged (core.md PV1), and the login in section 6 is specified in
