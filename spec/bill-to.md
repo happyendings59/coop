@@ -321,11 +321,11 @@ Every failed test or finding gets an entry with IL, status, and fix commit.
 
 ## 10. Contract sketches
 See [`contracts/bill-to/BillTo.sol`](../contracts/bill-to/BillTo.sol) (about 250 lines).
-It compiles clean with solc 0.8.24 and OpenZeppelin 5.0.2 (checked 2026-11-23). It has no tests yet and is not audited. Open TODOs in the file: permit / ERC-3009 pay, tokenURI.
+It compiles with solc 0.8.24 and OpenZeppelin 5.0.2. 14 tests in `contracts/bill-to/test/` pass on an in-process local chain (`npm install && npm test` in that folder; checked 2026-11-23). Not audited, not deployed. Open TODOs in the file: permit / ERC-3009 pay, tokenURI. Contract and tests were folded in from Kenny's private working repo happyendings59/billto on 2026-11-23 (his choice); this repository is now the source of truth.
 
 ## 11. Decisions for Kenny
 1. Build our own or use Request Network as the base layer? (Recommend: our own small contract, it is about 250 lines and fits the NFT bill idea; read Request Network first.)
-2. Pay merchant at once on full funding (this draft) or a hold window?
+2. ~~Pay merchant at once or a hold window?~~ Answered 2026-11-23 (recorded in the billto repo): the merchant is paid the moment the bill is fully funded. Whether co-op orders instead feed the co-op escrow is still open (section 12).
 3. ~~Which repo?~~ Answered 2026-11-23: it lives in this co-op repository (happyendings59/coop) as shared code.
 4. ~~Which chain first?~~ Answered 2026-11-23: Ethereum mainnet and Polygon PoS for now (5.6).
 5. Hosted shared watcher (one for all sites) or one per site?
