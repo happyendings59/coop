@@ -67,7 +67,7 @@ Every source maps into one record: `uid, name, category, street, city, state, po
 
 ### 6.3 Owner claim (LinkedIn style)
 
-A person signs in with a signature login (a wallet or passkey signature, no password), then proves control of the place by one of these, strongest first:
+A person signs in with a signature login ([signature-login.md](signature-login.md): sign a challenge with a wallet, no password), then proves control of the place by one of these, strongest first:
 
 | ID | Method | Notes |
 | --- | --- | --- |
