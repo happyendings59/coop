@@ -37,7 +37,9 @@ See the docstring at the top of `dirload/dedupe.py`. In short: same phone, same 
 
 ## Chicago, first run (2026-11-24, Overture only)
 
-177,185 places after dropping low confidence and closed ones. Street address 98.7%, phone 87.5%, website 78.9%, category 97.5%, socials 44.7%, public email 27.7%, opening hours 0% (Overture has none; OSM adds them).
+177,185 places after dropping low confidence and closed ones. Street address 98.7%, phone 87.5%, website 78.9%, category 97.5%, socials 44.7%, public email 27.7%, opening hours 0% (Overture has none).
+
+With OSM (GitHub Actions run): 187,501 places, opening hours 2.95% (about 5,500 places), phone 83.5%, website 76.0%.
 
 ## Tests
 

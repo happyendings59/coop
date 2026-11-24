@@ -99,7 +99,9 @@ A person signs in with a signature login (a wallet or passkey signature, no pass
 
 ## 7. Coverage today (Chicago, measured)
 
-Overture release 2026-11-18.0, Chicago box (-87.94, 41.64, -87.52, 42.03), confidence at least 0.5, closed places dropped: **177,185 places**. Share with street address 98.7%, phone 87.5%, website 78.9%, category 97.5%, socials 44.7%, public email 27.7%, **opening hours 0%** (Overture has no hours field). OpenStreetMap is the hours source; the `directory-build` GitHub workflow adds it and reports its coverage in run.json.
+Overture release 2026-11-18.0, Chicago box (-87.94, 41.64, -87.52, 42.03), confidence at least 0.5, closed places dropped: **177,185 places**. Share with street address 98.7%, phone 87.5%, website 78.9%, category 97.5%, socials 44.7%, public email 27.7%, **opening hours 0%** (Overture has no hours field).
+
+With OpenStreetMap added (GitHub Actions run, same day): **187,501 places**, of which 28,185 carry OSM data and about 18,600 are matched across both sources. **Opening hours: 2.95%, about 5,500 places.** Free open data will not supply hours at scale; owner claims (§8.1) must.
 
 ## 8. Filling the hours gap, legally
 
