@@ -107,7 +107,7 @@ IL = integrity level (section 8.1). "Shall" items are tested.
 | F8 | After expiry, an unpaid bill shall become EXPIRED and contributors shall withdraw their own money (pull) | 4 |
 | F9 | Buyer or merchant shall be able to cancel an unpaid bill; contributions become withdrawable | 4 |
 | F10 | Merchant shall be able to refund a PAID bill in full; money goes back pro rata to contributors (pull) | 4 |
-| F11 | Supported tokens shall be an allowlist per deployment (USDC first, native ETH second) | 3 |
+| F11 | Supported tokens shall be an allowlist per deployment. BOLD is the default; USDC and native ETH are allowed. The merchant picks the token for each bill in the signed terms (decided by Kenny 2026-11-23) | 3 |
 | F12 | Sites learn status from events (`BillPaid`, `BillCancelled`, `BillExpired`, `BillRefunded`) via a watcher, never from the browser alone | 3 |
 
 ### 4.2 Non functional
@@ -162,13 +162,16 @@ adds to `contributed[billId][payer]`. The last payment that reaches the amount s
 The Bill NFT stays with whoever holds it; contributors get a `BillContribution` event
 (their receipt). A site can show "3 of 4 friends paid".
 
-### 5.5 Tokens: USDC vs ETH
-| | USDC | ETH |
-|---|---|---|
-| Price stable | yes | no, the bill amount moves in dollar terms |
-| Issuer can freeze | yes (Circle blacklist, required by the GENIUS Act). A frozen merchant or contract stops settlement | no |
-| Gasless pay | ERC-3009 / permit | needs ETH anyway |
-| Recommendation | default | allowed, priced at creation, short expiry |
+### 5.5 Tokens: BOLD, USDC, ETH
+Decision (Kenny, 2026-11-23): "i'd prefer bold, but they could pick." BOLD is the
+default; the merchant may pick USDC or ETH instead when it creates the bill.
+
+| | BOLD | USDC | ETH |
+|---|---|---|---|
+| Price stable | USD pegged, not guaranteed (cooperative.md N6) | yes | no, the bill amount moves in dollar terms |
+| Issuer can freeze | no freeze, pause or blacklist function (cooperative.md N1) | yes (Circle blacklist, required by the GENIUS Act). A frozen merchant or contract stops settlement | no |
+| Gasless pay | to be checked (permit support not confirmed here) | ERC-3009 / permit | needs ETH anyway |
+| Recommendation | default | allowed | allowed, priced at creation, short expiry |
 
 Freeze risk is real: if Circle blacklists the contract address, all open USDC bills
 on it are stuck. Mitigation: one contract per token per chain, short expiries, and
@@ -330,7 +333,7 @@ resolved; nothing above was changed to force a fit.
 
 | Point | This spec | core.md / cooperative.md | Question |
 |---|---|---|---|
-| Settlement token | USDC default, ETH second (5.5, F11) | BOLD, no freeze function; USDC is not the default (cooperative.md N1, N2) | Should Bill To default to BOLD inside the co-op, with USDC only for non co-op sites? |
+| Settlement token | DECIDED 2026-11-23: BOLD default, merchant may pick USDC or ETH (5.5, F11) | BOLD, no freeze function; USDC is not the default (cooperative.md N1, N2) | Resolved. Note: BOLD's native network is Ethereum mainnet (cooperative.md N4), so the chain question below now matters more |
 | Release rule | merchant paid the moment the bill is fully funded (5.2) | release by party signatures or a 2-of-3 arbiter (core.md E2) | Is Bill To a pre-payment step that feeds a co-op escrow, or its own settlement path? (Ties to decision 2, hold window.) |
 | Chains | Base and Arbitrum One first (N3) | Ethereum mainnet for escrow, L2 for small records (cooperative.md N4) | Which network for co-op bills? |
 
