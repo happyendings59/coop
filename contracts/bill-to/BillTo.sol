@@ -44,6 +44,7 @@ contract BillTo is ERC721, EIP712, ReentrancyGuard, Ownable2Step {
         bool    splitAllowed;
         uint16  minContributionBps; // share of the bill, in basis points, each split payment must reach; ignored if !splitAllowed
         bool    escrow;            // false: pay merchant at once on full funding. true: hold until released (5.2)
+        uint32  escrowTimeout;     // escrow only: seconds a held bill waits before payers may take their money back; 0 = DEFAULT_ESCROW_TIMEOUT
         uint256 nonce;             // merchant chosen, one use
     }
 
@@ -53,6 +54,8 @@ contract BillTo is ERC721, EIP712, ReentrancyGuard, Ownable2Step {
         address arbiter;
         address token;             // set when the first payment picks a coin
         uint64  expiry;
+        uint64  heldUntil;         // escrow: after this time an unreleased held bill refunds the payers
+        uint32  escrowTimeout;
         Status  status;
         bool    splitAllowed;
         bool    escrow;
@@ -67,10 +70,11 @@ contract BillTo is ERC721, EIP712, ReentrancyGuard, Ownable2Step {
     }
 
     uint256 public constant MAX_OFFERS = 4;
+    uint32 public constant DEFAULT_ESCROW_TIMEOUT = 30 days; // Kenny 2026-11-23: adjustable per bill, 30 day default
 
     bytes32 private constant OFFER_TYPEHASH = keccak256("Offer(address token,uint256 amount)");
     bytes32 private constant TERMS_TYPEHASH = keccak256(
-        "Terms(address merchant,address buyer,address arbiter,Offer[] offers,uint64 expiry,bytes32 orderHash,bool splitAllowed,uint16 minContributionBps,bool escrow,uint256 nonce)Offer(address token,uint256 amount)"
+        "Terms(address merchant,address buyer,address arbiter,Offer[] offers,uint64 expiry,bytes32 orderHash,bool splitAllowed,uint16 minContributionBps,bool escrow,uint32 escrowTimeout,uint256 nonce)Offer(address token,uint256 amount)"
     );
 
     mapping(address => bool) public tokenAllowed;                         // F11
@@ -148,6 +152,7 @@ contract BillTo is ERC721, EIP712, ReentrancyGuard, Ownable2Step {
         b.expiry = t.expiry;
         b.splitAllowed = t.splitAllowed;
         b.escrow = t.escrow;
+        b.escrowTimeout = t.escrowTimeout == 0 ? DEFAULT_ESCROW_TIMEOUT : t.escrowTimeout;
         b.minContributionBps = t.minContributionBps;
         b.orderHash = t.orderHash;
         b.claimSigner = payer == address(0) ? claimSigner : address(0);
@@ -172,7 +177,7 @@ contract BillTo is ERC721, EIP712, ReentrancyGuard, Ownable2Step {
         }
         bytes32 offersHash = keccak256(abi.encodePacked(oh));
         bytes memory head = abi.encode(TERMS_TYPEHASH, t.merchant, t.buyer, t.arbiter, offersHash);
-        bytes memory tail = abi.encode(t.expiry, t.orderHash, t.splitAllowed, t.minContributionBps, t.escrow, t.nonce);
+        bytes memory tail = abi.encode(t.expiry, t.orderHash, t.splitAllowed, t.minContributionBps, t.escrow, t.escrowTimeout, t.nonce);
         return _hashTypedDataV4(keccak256(bytes.concat(head, tail)));
     }
 
@@ -235,6 +240,7 @@ contract BillTo is ERC721, EIP712, ReentrancyGuard, Ownable2Step {
 
         if (settles) {                                                                   // F6
             if (b.escrow) {
+                b.heldUntil = uint64(block.timestamp) + b.escrowTimeout;
                 emit BillHeld(billId, b.amount);
             } else {
                 _send(b.token, b.merchant, b.amount);
@@ -312,8 +318,13 @@ contract BillTo is ERC721, EIP712, ReentrancyGuard, Ownable2Step {
     }
 
     /// @notice Pull pattern: each contributor takes back exactly what they put in.
+    ///         A held (escrow) bill nobody released or ruled on by heldUntil becomes refunded here.
     function withdraw(uint256 billId) external nonReentrant {
         Bill storage b = bills[billId];
+        if (b.status == Status.Held && block.timestamp >= b.heldUntil) {
+            b.status = Status.Refunded;
+            emit BillRefunded(billId);
+        }
         bool open_expired = (b.status == Status.Open && block.timestamp >= b.expiry);
         if (!(open_expired || b.status == Status.Cancelled || b.status == Status.Refunded)) revert NotExpiredOrClosed();
         uint256 amt = contributed[billId][msg.sender];

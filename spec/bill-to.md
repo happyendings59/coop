@@ -112,7 +112,7 @@ IL = integrity level (section 8.1). "Shall" items are tested.
 ### 4.1 Functional
 | ID | Requirement | IL |
 |---|---|---|
-| F1 | A merchant shall create a bill from merchant signed EIP-712 terms: merchant, buyer, offers (1 to 4 coin and price pairs), expiry, order hash, split allowed, minimum split share (basis points of the bill), settlement mode (pay at once or escrow), arbiter (escrow only), nonce | 3 |
+| F1 | A merchant shall create a bill from merchant signed EIP-712 terms: merchant, buyer, offers (1 to 4 coin and price pairs), expiry, order hash, split allowed, minimum split share (basis points of the bill), settlement mode (pay at once or escrow), arbiter and escrow timeout (escrow only), nonce | 3 |
 | F2 | The bill shall be minted as an ERC-721 to the payer address, or held by the contract against a claim key hash if the payer is a handle | 3 |
 | F3 | A claim link holder shall claim the Bill NFT to any address by signing that address with the claim key (front run safe) | 3 |
 | F4 | Anyone may pay; the Bill NFT holder is who is asked, not the only one allowed | 2 |
@@ -169,8 +169,9 @@ choose or finalize early on the payment"). The signed terms carry one of:
 Co-op orders follow the co-op's rules for which modes a member may offer. Escrow mode
 requires an arbiter who is neither the merchant nor the buyer (core.md E3). While held,
 the bill does not expire; the merchant may refund it (payers then withdraw), and the
-arbiter may pay the merchant or refund the payers. Open: what happens if an arbiter
-disappears (no timeout is defined yet; see section 11).
+arbiter may pay the merchant or refund the payers. **Escrow timeout** (Kenny, 2026-11-23:
+"it is adjustable"): each bill sets how long a held bill waits; the default is 30 days.
+If nobody releases or rules by then, the payers take their money back.
 
 ### 5.3 Claim links for SimpleX, Telegram, email
 1. Site generates a throwaway keypair (claim key) in the buyer's browser.
@@ -348,7 +349,7 @@ Every failed test or finding gets an entry with IL, status, and fix commit.
 
 ## 10. Contract sketches
 See [`contracts/bill-to/BillTo.sol`](../contracts/bill-to/BillTo.sol) (about 250 lines).
-It compiles with solc 0.8.24 and OpenZeppelin 5.0.2. 22 tests in `contracts/bill-to/test/` pass on an in-process local chain (`npm install && npm test` in that folder; checked 2026-11-24). The contract compiles with `viaIR` because escrow mode added fields. Not audited, not deployed. Open TODOs in the file: permit / ERC-3009 pay, tokenURI. Contract and tests were folded in from Kenny's private working repo happyendings59/billto on 2026-11-23 (his choice); this repository is now the source of truth.
+It compiles with solc 0.8.24 and OpenZeppelin 5.0.2. 24 tests in `contracts/bill-to/test/` pass on an in-process local chain (`npm install && npm test` in that folder; checked 2026-11-24). The contract compiles with `viaIR` because escrow mode added fields. Not audited, not deployed. Open TODOs in the file: permit / ERC-3009 pay, tokenURI. Contract and tests were folded in from Kenny's private working repo happyendings59/billto on 2026-11-23 (his choice); this repository is now the source of truth.
 
 ## 11. Decisions for Kenny
 1. Build our own or use Request Network as the base layer? (Recommend: our own small contract, it is about 250 lines and fits the NFT bill idea; read Request Network first.)
@@ -357,7 +358,7 @@ It compiles with solc 0.8.24 and OpenZeppelin 5.0.2. 22 tests in `contracts/bill
 4. ~~Which chain first?~~ Answered 2026-11-23: Ethereum mainnet and Polygon PoS for now (5.6).
 5. Hosted shared watcher (one for all sites) or one per site?
 6. Who is the lawyer who reviews section 7 before mainnet?
-7. Escrow mode: should a held bill have a timeout (for example, refund the payers if neither side nor the arbiter acts within N days)? None is set; an absent arbiter can leave money held.
+7. ~~Escrow timeout?~~ Answered 2026-11-23: adjustable per bill, default 30 days.
 8. Who serves as arbiter for co-op orders (core.md §4.3 independent attestor network, or an outside service such as Kleros)?
 
 ## 12. Fit with core.md (open, needs a decision)
