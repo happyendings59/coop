@@ -3,7 +3,7 @@ const solc = require("solc"), fs = require("fs"), path = require("path");
 const files = ["BillTo.sol", "test/MockERC20.sol"];
 const sources = Object.fromEntries(files.map(f => [f, { content: fs.readFileSync(f, "utf8") }]));
 const input = { language: "Solidity", sources,
-  settings: { optimizer: { enabled: true, runs: 200 }, outputSelection: { "*": { "*": ["abi", "evm.bytecode.object"] } } } };
+  settings: { viaIR: true, optimizer: { enabled: true, runs: 200 }, outputSelection: { "*": { "*": ["abi", "evm.bytecode.object"] } } } };
 const findImports = p => { try { return { contents: fs.readFileSync(path.join("node_modules", p), "utf8") }; } catch { return { error: "not found: " + p }; } };
 const out = JSON.parse(solc.compile(JSON.stringify(input), { import: findImports }));
 let bad = false;

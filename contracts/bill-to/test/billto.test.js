@@ -8,9 +8,9 @@ const art = require("../build/artifacts.json");
 
 const CHAIN_ID = 1337;
 const U = (n) => ethers.parseUnits(String(n), 18);
-const KEYS = Array.from({ length: 8 }, (_, i) => ethers.zeroPadValue(ethers.toBeHex(i + 1), 32));
+const KEYS = Array.from({ length: 9 }, (_, i) => ethers.zeroPadValue(ethers.toBeHex(i + 1), 32));
 
-let provider, admin, merchant, buyer, alice, bob, carol, dave, stranger;
+let provider, admin, merchant, buyer, alice, bob, carol, dave, stranger, arbiter;
 let billto, token, other;
 
 async function deploy(name, signer, ...args) {
@@ -52,21 +52,26 @@ async function makeTerms(over = {}) {
   const t = {
     merchant: merchant.address,
     buyer: buyer.address,
-    token: await token.getAddress(),
-    amount: U(100),
+    arbiter: ethers.ZeroAddress,
+    offers: [{ token: await token.getAddress(), amount: U(100) }],
     expiry: (await now()) + 3600,
     orderHash: ethers.keccak256(ethers.toUtf8Bytes(`order-${nonce}`)),
     splitAllowed: false,
-    minContribution: 0n,
+    minContributionBps: 0,
+    escrow: false,
     nonce: nonce++,
     ...over,
   };
   const domain = { name: "BillTo", version: "1", chainId: CHAIN_ID, verifyingContract: await billto.getAddress() };
-  const types = { Terms: [
-    { name: "merchant", type: "address" }, { name: "buyer", type: "address" }, { name: "token", type: "address" },
-    { name: "amount", type: "uint256" }, { name: "expiry", type: "uint64" }, { name: "orderHash", type: "bytes32" },
-    { name: "splitAllowed", type: "bool" }, { name: "minContribution", type: "uint256" }, { name: "nonce", type: "uint256" },
-  ] };
+  const types = {
+    Terms: [
+      { name: "merchant", type: "address" }, { name: "buyer", type: "address" }, { name: "arbiter", type: "address" },
+      { name: "offers", type: "Offer[]" }, { name: "expiry", type: "uint64" }, { name: "orderHash", type: "bytes32" },
+      { name: "splitAllowed", type: "bool" }, { name: "minContributionBps", type: "uint16" }, { name: "escrow", type: "bool" },
+      { name: "nonce", type: "uint256" },
+    ],
+    Offer: [{ name: "token", type: "address" }, { name: "amount", type: "uint256" }],
+  };
   const signer = over.signer || merchant;
   delete t.signer;
   const sig = await signer.signTypedData(domain, types, t);
@@ -80,13 +85,14 @@ async function createBill(over = {}, payer, claimSigner = ethers.ZeroAddress) {
   return { id, t };
 }
 
-async function pay(who, id, amt) {
-  await (await token.connect(who).approve(await billto.getAddress(), amt)).wait();
-  return billto.connect(who).pay(id, amt);
+async function pay(who, id, amt, coin = token) {
+  await (await coin.connect(who).approve(await billto.getAddress(), amt)).wait();
+  return billto.connect(who).pay(id, await coin.getAddress(), amt);
 }
 
 const bal = async (a) => token.balanceOf(a.address ?? a);
-const status = async (id) => Number((await billto.bills(id)).status); // 0 Open 1 Paid 2 Cancelled 3 Refunded
+const status = async (id) => Number((await billto.bills(id)).status); // 0 Open 1 Held 2 Paid 3 Cancelled 4 Refunded
+const OPEN = 0, HELD = 1, PAID = 2, CANCELLED = 3, REFUNDED = 4;
 
 beforeEach(async () => {
   const g = ganache.provider({
@@ -98,7 +104,7 @@ beforeEach(async () => {
   provider = new ethers.BrowserProvider(g, undefined, { cacheTimeout: -1, pollingInterval: 10 });
   provider.pollingInterval = 10;
   // Plain wallets (no NonceManager): a reverted send must not leave a nonce gap.
-  [admin, merchant, buyer, alice, bob, carol, dave, stranger] = KEYS.map((k) => new ethers.Wallet(k, provider));
+  [admin, merchant, buyer, alice, bob, carol, dave, stranger, arbiter] = KEYS.map((k) => new ethers.Wallet(k, provider));
   billto = await deploy("BillTo", admin, admin.address);
   token = await deploy("MockERC20", admin);
   other = await deploy("MockERC20", admin);
@@ -112,7 +118,7 @@ test("F1 F2 F6: one payer pays in full, merchant paid at once, NFT locks as rece
   const before = await bal(merchant);
   await (await pay(alice, id, U(100))).wait();
   assert.equal(await bal(merchant) - before, U(100));
-  assert.equal(await status(id), 1);
+  assert.equal(await status(id), PAID);
   assert.equal(await billto.locked(id), true);
   assert.equal(await bal(await billto.getAddress()), 0n); // INV1
   await expectRevert(billto.connect(alice).transferFrom(alice.address, bob.address, id), "Locked");
@@ -121,27 +127,27 @@ test("F1 F2 F6: one payer pays in full, merchant paid at once, NFT locks as rece
 test("F4: anyone may pay, not only the NFT holder", async () => {
   const { id } = await createBill();
   await (await pay(bob, id, U(100))).wait();
-  assert.equal(await status(id), 1);
+  assert.equal(await status(id), PAID);
 });
 
 test("F5 F6: Uber style split, four payers, last one settles", async () => {
-  const { id } = await createBill({ splitAllowed: true, minContribution: U(10) });
+  const { id } = await createBill({ splitAllowed: true, minContributionBps: 1000 });
   const before = await bal(merchant);
   for (const p of [alice, bob, carol]) await (await pay(p, id, U(25))).wait();
-  assert.equal(await status(id), 0);
+  assert.equal(await status(id), OPEN);
   assert.equal(await bal(await billto.getAddress()), U(75)); // INV1 while open
   await (await pay(dave, id, U(25))).wait();
-  assert.equal(await status(id), 1);
+  assert.equal(await status(id), PAID);
   assert.equal(await bal(merchant) - before, U(100));
   assert.equal(await bal(await billto.getAddress()), 0n);
 });
 
 test("F5: split refuses contributions under the minimum unless it finishes the bill", async () => {
-  const { id } = await createBill({ splitAllowed: true, minContribution: U(10) });
+  const { id } = await createBill({ splitAllowed: true, minContributionBps: 1000 });
   await expectRevert(pay(alice, id, U(5)), "BadAmount");
   await (await pay(alice, id, U(95))).wait();
   await (await pay(bob, id, U(5))).wait(); // under min but exactly the remainder
-  assert.equal(await status(id), 1);
+  assert.equal(await status(id), PAID);
 });
 
 test("F5: no split means partial payment is refused", async () => {
@@ -179,7 +185,7 @@ test("F9: buyer or merchant cancels; stranger cannot; contributors withdraw", as
   await (await pay(alice, id, U(40))).wait();
   await expectRevert(billto.connect(stranger).cancel(id), "NotAllowed");
   await (await billto.connect(buyer).cancel(id)).wait();
-  assert.equal(await status(id), 2);
+  assert.equal(await status(id), CANCELLED);
   await expectRevert(pay(bob, id, U(60)), "NotOpen");
   const a0 = await bal(alice);
   await (await billto.connect(alice).withdraw(id)).wait();
@@ -187,7 +193,7 @@ test("F9: buyer or merchant cancels; stranger cannot; contributors withdraw", as
 
   const { id: id2 } = await createBill();
   await (await billto.connect(merchant).cancel(id2)).wait();
-  assert.equal(await status(id2), 2);
+  assert.equal(await status(id2), CANCELLED);
 });
 
 test("F10: merchant refunds a paid bill; contributors get back what they paid", async () => {
@@ -197,7 +203,7 @@ test("F10: merchant refunds a paid bill; contributors get back what they paid", 
   await expectRevert(billto.connect(stranger).refund(id), "NotAllowed");
   await (await token.connect(merchant).approve(await billto.getAddress(), U(100))).wait();
   await (await billto.connect(merchant).refund(id)).wait();
-  assert.equal(await status(id), 3);
+  assert.equal(await status(id), REFUNDED);
   const a0 = await bal(alice), b0 = await bal(bob);
   await (await billto.connect(alice).withdraw(id)).wait();
   await (await billto.connect(bob).withdraw(id)).wait();
@@ -229,7 +235,7 @@ test("F1 INV6: bad merchant signature, reused terms, and unlisted coin are refus
   const ok = await makeTerms();
   await (await billto.connect(buyer).createBill(ok.t, ok.sig, alice.address, ethers.ZeroAddress)).wait();
   await expectRevert(billto.connect(buyer).createBill(ok.t, ok.sig, alice.address, ethers.ZeroAddress), "TermsReused");
-  const unlisted = await makeTerms({ token: await other.getAddress() });
+  const unlisted = await makeTerms({ offers: [{ token: await other.getAddress(), amount: U(100) }] });
   await expectRevert(billto.connect(buyer).createBill(unlisted.t, unlisted.sig, alice.address, ethers.ZeroAddress), "TokenNotAllowed");
   const past = await makeTerms({ expiry: (await now()) - 1 });
   await expectRevert(billto.connect(buyer).createBill(past.t, past.sig, alice.address, ethers.ZeroAddress), "BadAmount");
@@ -239,9 +245,8 @@ test("Options: a second coin can be allowlisted and used (BOLD default, others a
   await (await billto.connect(admin).setToken(await other.getAddress(), true)).wait();
   await expectRevert(billto.connect(stranger).setToken(await other.getAddress(), false));
   await (await other.connect(admin).mint(alice.address, U(100))).wait();
-  const { id } = await createBill({ token: await other.getAddress() });
-  await (await other.connect(alice).approve(await billto.getAddress(), U(100))).wait();
-  await (await billto.connect(alice).pay(id, U(100))).wait();
+  const { id } = await createBill({ offers: [{ token: await other.getAddress(), amount: U(100) }] });
+  await (await pay(alice, id, U(100), other)).wait();
   assert.equal(await other.balanceOf(merchant.address), U(100));
 });
 
@@ -256,9 +261,122 @@ test("Freeze simulation: frozen merchant blocks settlement, contributors still g
   await (await pay(alice, id, U(50))).wait();
   await (await token.connect(admin).freeze(merchant.address, true)).wait();
   await expectRevert(pay(bob, id, U(50))); // final payment reverts as a whole
-  assert.equal(await status(id), 0);
+  assert.equal(await status(id), OPEN);
   await increaseTime(3601);
   const a0 = await bal(alice);
   await (await billto.connect(alice).withdraw(id)).wait();
   assert.equal(await bal(alice) - a0, U(50));
+});
+
+// ---------------------------------------------------------------- payer picks the coin (F11, 5.5)
+
+test("F11: merchant offers several coins at their own prices; the first payer picks one", async () => {
+  await (await billto.connect(admin).setToken(await other.getAddress(), true)).wait();
+  await (await other.connect(admin).mint(alice.address, U(1000))).wait();
+  const offers = [{ token: await token.getAddress(), amount: U(100) }, { token: await other.getAddress(), amount: 100_000_000n }]; // e.g. 18 vs 6 decimals
+  const { id } = await createBill({ offers, splitAllowed: true, minContributionBps: 1000 });
+  const third = await deploy("MockERC20", admin);
+  await (await third.connect(admin).mint(alice.address, U(100))).wait();
+  await expectRevert(pay(alice, id, U(100), third), "WrongCoin"); // never offered
+  await (await pay(alice, id, 60_000_000n, other)).wait(); // Alice picks the second coin
+  const b = await billto.bills(id);
+  assert.equal(b.token, await other.getAddress());
+  assert.equal(b.amount, 100_000_000n);
+  await expectRevert(pay(bob, id, U(40), token), "WrongCoin"); // split must stay in the picked coin
+  await (await other.connect(admin).mint(bob.address, U(1000))).wait();
+  await (await pay(bob, id, 40_000_000n, other)).wait();
+  assert.equal(await status(id), PAID);
+  assert.equal(await other.balanceOf(merchant.address), 100_000_000n);
+});
+
+test("F11: offers must be 1 to 4 allowlisted coins, no duplicates, no zero price", async () => {
+  const tk = await token.getAddress();
+  const tries = [
+    { offers: [] },
+    { offers: [1, 2, 3, 4, 5].map((n) => ({ token: tk, amount: U(n) })) },
+    { offers: [{ token: tk, amount: U(1) }, { token: tk, amount: U(2) }] },
+    { offers: [{ token: tk, amount: 0n }] },
+  ];
+  for (const over of tries) {
+    const x = await makeTerms(over);
+    await expectRevert(billto.connect(buyer).createBill(x.t, x.sig, alice.address, ethers.ZeroAddress), "BadOffers");
+  }
+});
+
+test("F11: native ETH can be offered and paid", async () => {
+  await (await billto.connect(admin).setToken(ethers.ZeroAddress, true)).wait();
+  const { id } = await createBill({ offers: [{ token: ethers.ZeroAddress, amount: U(1) }] });
+  const before = await provider.getBalance(merchant.address);
+  await (await billto.connect(alice).pay(id, ethers.ZeroAddress, U(1), { value: U(1) })).wait();
+  assert.equal(await provider.getBalance(merchant.address) - before, U(1));
+  assert.equal(await status(id), PAID);
+});
+
+// ---------------------------------------------------------------- escrow mode (5.2, core.md E2 to E4)
+
+const esc = () => ({ escrow: true, arbiter: arbiter.address });
+
+test("Escrow: full funding holds the money; both sides release (finalize early); merchant paid", async () => {
+  const { id } = await createBill(esc());
+  const before = await bal(merchant);
+  await (await pay(alice, id, U(100))).wait();
+  assert.equal(await status(id), HELD);
+  assert.equal(await bal(await billto.getAddress()), U(100));
+  await expectRevert(billto.connect(stranger).approveRelease(id), "NotAllowed");
+  await (await billto.connect(merchant).approveRelease(id)).wait();
+  assert.equal(await status(id), HELD); // one side is not enough
+  await (await billto.connect(buyer).approveRelease(id)).wait();
+  assert.equal(await status(id), PAID);
+  assert.equal(await bal(merchant) - before, U(100));
+  assert.equal(await bal(await billto.getAddress()), 0n);
+  assert.equal(await billto.locked(id), true);
+});
+
+test("Escrow: a held bill does not expire and cannot be withdrawn or cancelled", async () => {
+  const { id } = await createBill(esc());
+  await (await pay(alice, id, U(100))).wait();
+  await increaseTime(3601);
+  await expectRevert(billto.connect(alice).withdraw(id), "NotExpiredOrClosed");
+  await expectRevert(billto.connect(buyer).cancel(id), "NotOpen");
+  assert.equal(await status(id), HELD);
+});
+
+test("Escrow: arbiter rules for the merchant, or refunds the payers; nobody else can rule", async () => {
+  const { id } = await createBill({ ...esc(), splitAllowed: true });
+  await (await pay(alice, id, U(70))).wait();
+  await (await pay(bob, id, U(30))).wait();
+  await expectRevert(billto.connect(merchant).rule(id, true), "NotAllowed");
+  const a0 = await bal(alice), b0 = await bal(bob);
+  await (await billto.connect(arbiter).rule(id, false)).wait();
+  assert.equal(await status(id), REFUNDED);
+  await (await billto.connect(alice).withdraw(id)).wait();
+  await (await billto.connect(bob).withdraw(id)).wait();
+  assert.equal(await bal(alice) - a0, U(70));
+  assert.equal(await bal(bob) - b0, U(30));
+  assert.equal(await bal(await billto.getAddress()), 0n);
+  await expectRevert(billto.connect(arbiter).rule(id, true), "NotAllowed"); // INV2: settled once
+
+  const { id: id2 } = await createBill(esc());
+  await (await pay(alice, id2, U(100))).wait();
+  const m0 = await bal(merchant);
+  await (await billto.connect(arbiter).rule(id2, true)).wait();
+  assert.equal(await status(id2), PAID);
+  assert.equal(await bal(merchant) - m0, U(100));
+});
+
+test("Escrow: merchant can refund a held bill without sending money in", async () => {
+  const { id } = await createBill(esc());
+  await (await pay(alice, id, U(100))).wait();
+  await (await billto.connect(merchant).refund(id)).wait();
+  assert.equal(await status(id), REFUNDED);
+  const a0 = await bal(alice);
+  await (await billto.connect(alice).withdraw(id)).wait();
+  assert.equal(await bal(alice) - a0, U(100));
+});
+
+test("Escrow: needs an arbiter who is neither merchant nor buyer", async () => {
+  for (const a of [ethers.ZeroAddress, merchant.address, buyer.address]) {
+    const x = await makeTerms({ escrow: true, arbiter: a });
+    await expectRevert(billto.connect(buyer).createBill(x.t, x.sig, alice.address, ethers.ZeroAddress), "BadArbiter");
+  }
 });
