@@ -107,10 +107,7 @@ contract BillTo is ERC721, EIP712, ReentrancyGuard, Ownable2Step {
         if (t.amount == 0 || t.expiry <= block.timestamp) revert BadAmount();
         if (payer == address(0) && claimSigner == address(0)) revert NotAllowed();
 
-        bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(
-            TERMS_TYPEHASH, t.merchant, t.buyer, t.token, t.amount, t.expiry,
-            t.orderHash, t.splitAllowed, t.minContribution, t.nonce
-        )));
+        bytes32 digest = termsDigest(t);
         if (termsUsed[digest]) revert TermsReused();
         if (!SignatureChecker.isValidSignatureNow(t.merchant, digest, merchantSig)) revert BadSignature();
         termsUsed[digest] = true;
@@ -132,6 +129,12 @@ contract BillTo is ERC721, EIP712, ReentrancyGuard, Ownable2Step {
 
         _mint(payer == address(0) ? address(this) : payer, billId);
         emit BillCreated(billId, t.merchant, payer, t.orderHash, t.token, t.amount, t.expiry);
+    }
+
+    /// EIP-712 digest of the terms. Terms has only static fields, so abi.encode(typehash, t)
+    /// equals encoding each field in order (and avoids stack too deep).
+    function termsDigest(Terms calldata t) public view returns (bytes32) {
+        return _hashTypedDataV4(keccak256(abi.encode(TERMS_TYPEHASH, t)));
     }
 
     // ------------------------------------------------------------------ claim link (F3)

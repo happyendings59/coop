@@ -107,7 +107,7 @@ IL = integrity level (section 8.1). "Shall" items are tested.
 | F8 | After expiry, an unpaid bill shall become EXPIRED and contributors shall withdraw their own money (pull) | 4 |
 | F9 | Buyer or merchant shall be able to cancel an unpaid bill; contributions become withdrawable | 4 |
 | F10 | Merchant shall be able to refund a PAID bill in full; money goes back pro rata to contributors (pull) | 4 |
-| F11 | Supported tokens shall be an allowlist per deployment. The list is short on purpose: BOLD (default), USDC, Tether (USDT) and native ETH. The merchant picks one of these for each bill in the signed terms (decided by Kenny 2026-11-23) | 3 |
+| F11 | Supported tokens shall be an allowlist per deployment. The list is short on purpose: BOLD (default), USDC, Tether (USDT) and native ETH. The merchant lists which of these it accepts in the signed terms, and the payer picks one of those when paying (decided by Kenny 2026-11-23: "whatever they choose"). The current contract takes one token per bill; accepting a list is a TODO | 3 |
 | F12 | Sites learn status from events (`BillPaid`, `BillCancelled`, `BillExpired`, `BillRefunded`) via a watcher, never from the browser alone | 3 |
 
 ### 4.2 Non functional
@@ -144,6 +144,15 @@ the waiting period before full funding. Once full, the merchant is paid at once,
 merchant is never stuck waiting on a second release step. Refunds then need the
 merchant to send funds back in (`refund` pulls from the merchant). A hold window
 variant (merchant paid after N days) is an option in section 11.
+
+**Settlement mode is a choice per bill** (Kenny, 2026-11-23: "either way.. whatever they
+choose or finalize early on the payment"). The signed terms carry one of:
+- **Pay at once:** the merchant is paid in the transaction that fully funds the bill (as above).
+- **Escrow:** full funding moves the money into an escrow that releases when buyer and
+  merchant both sign, or an independent arbiter rules (core.md E2 to E4). The parties MAY
+  finalize early by both signing at any time.
+Co-op orders follow the co-op's rules for which modes a member may offer. The current
+contract implements pay at once only; escrow mode is a TODO.
 
 ### 5.3 Claim links for SimpleX, Telegram, email
 1. Site generates a throwaway keypair (claim key) in the buyer's browser.
@@ -321,11 +330,11 @@ Every failed test or finding gets an entry with IL, status, and fix commit.
 
 ## 10. Contract sketches
 See [`contracts/bill-to/BillTo.sol`](../contracts/bill-to/BillTo.sol) (about 250 lines).
-It compiles clean with solc 0.8.24 and OpenZeppelin 5.0.2 (checked 2026-11-23). It has no tests yet and is not audited. Open TODOs in the file: permit / ERC-3009 pay, tokenURI.
+It compiles with solc 0.8.24 and OpenZeppelin 5.0.2. 14 tests in `contracts/bill-to/test/` pass on an in-process local chain (`npm install && npm test` in that folder; checked 2026-11-23). Not audited, not deployed. Open TODOs in the file: permit / ERC-3009 pay, tokenURI. Contract and tests were folded in from Kenny's private working repo happyendings59/billto on 2026-11-23 (his choice); this repository is now the source of truth.
 
 ## 11. Decisions for Kenny
 1. Build our own or use Request Network as the base layer? (Recommend: our own small contract, it is about 250 lines and fits the NFT bill idea; read Request Network first.)
-2. Pay merchant at once on full funding (this draft) or a hold window?
+2. ~~Pay merchant at once or a hold window?~~ Answered 2026-11-23 (recorded in the billto repo): the merchant is paid the moment the bill is fully funded. Whether co-op orders instead feed the co-op escrow is still open (section 12).
 3. ~~Which repo?~~ Answered 2026-11-23: it lives in this co-op repository (happyendings59/coop) as shared code.
 4. ~~Which chain first?~~ Answered 2026-11-23: Ethereum mainnet and Polygon PoS for now (5.6).
 5. Hosted shared watcher (one for all sites) or one per site?
@@ -340,7 +349,7 @@ resolved; nothing above was changed to force a fit.
 | Point | This spec | core.md / cooperative.md | Question |
 |---|---|---|---|
 | Settlement token | DECIDED 2026-11-23: BOLD default; merchant may pick USDC, USDT or ETH; no other tokens (5.5, F11) | BOLD, no freeze function; USDC is not the default (cooperative.md N1, N2) | Resolved. Note: BOLD's native network is Ethereum mainnet (cooperative.md N4), so the chain question below now matters more |
-| Release rule | merchant paid the moment the bill is fully funded (5.2) | release by party signatures or a 2-of-3 arbiter (core.md E2) | Is Bill To a pre-payment step that feeds a co-op escrow, or its own settlement path? (Ties to decision 2, hold window.) |
+| Release rule | DECIDED 2026-11-23: per bill choice of pay at once or escrow with early finalize (5.2) | release by party signatures or a 2-of-3 arbiter (core.md E2) | Resolved: escrow mode follows core.md E2 to E4. Contract support for escrow mode is a TODO |
 | Chains | DECIDED 2026-11-23: Ethereum mainnet and Polygon PoS for now (N3, 5.6) | Ethereum mainnet for escrow, L2 for small records; Polygon is listed (cooperative.md N4) | Resolved; matches cooperative.md N4 |
 
 The rest fits: no admin key moves funds (core.md P2, E6), order data off chain (core.md D1, D2),
