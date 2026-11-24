@@ -13,7 +13,7 @@ The cooperative is the first application, but the building blocks are general pu
 - **Rules by jurisdiction:** national, state and local law as modules.
 - **Justice and courts (exploratory):** signed event records, agreed and disputed facts, and local AI that helps people at intake and on filings while humans decide.
 
-This repository holds the **specification** and early contract sketches, not working code yet. It is also the shared home for common code used across the 5PM ecosystem (doof.top, rebu.life, nonprofit website templates and other sites). Developers are invited to read it, challenge it, and build against it.
+This repository holds the **specification**, early contract sketches, and one working tool: the open business directory loader in [tools/directory-loader](tools/directory-loader). It is also the shared home for common code used across the 5PM ecosystem (doof.top, rebu.life, nonprofit website templates and other sites). Developers are invited to read it, challenge it, and build against it.
 
 - Project page: https://5pm.io/coop/
 - Status: **draft, in formation.** Nothing here is audited, deployed or legal advice.
@@ -35,6 +35,7 @@ This repository holds the **specification** and early contract sketches, not wor
 | --- | --- |
 | [spec/core.md](spec/core.md) | Shared foundation: data placement, privacy, attestations, status flags and liens, escrow safety powers, jurisdiction modules, encrypted documents, chain selection, governance, justice and courts (exploratory) |
 | [spec/cooperative.md](spec/cooperative.md) | The cooperative marketplace: the nine-step transaction engine for products and services, vouchers, side paths, scheduling, pricing, credentials and reviews, finances, roles, roadmap |
+| [spec/directory.md](spec/directory.md) | Open business directory: legal data sources, the loader, business pages, LinkedIn style owner claims, and notices |
 | [spec/document-delivery.md](spec/document-delivery.md) | The 2024 NFT-backed legal document delivery platform (Cardano and Monero as candidate networks), published with a 2026 revision note |
 | [spec/bill-to.md](spec/bill-to.md) | Bill To (DRAFT): send an order's bill to someone else as an NFT; the order waits until the payer pays, then settles. Contract sketch in [contracts/bill-to/](contracts/bill-to/) |
 | [spec/signature-login.md](spec/signature-login.md) | Signature login (DRAFT): no passwords or phone numbers; sign a challenge with your wallet, optionally pushed over SimpleX |

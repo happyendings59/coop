@@ -1,0 +1,41 @@
+# Builds the open business directory extract (Overture + OpenStreetMap) and
+# uploads it as a workflow artifact. Runs the unit tests first.
+name: directory-build
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: "Region name from tools/directory-loader/dirload/regions.py"
+        default: "chicago"
+  push:
+    paths:
+      - "tools/directory-loader/**"
+      - ".github/workflows/directory-build.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: tools/directory-loader
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -v
+      - name: Build extract
+        run: |
+          REGION="${{ github.event.inputs.region || 'chicago' }}"
+          python -m dirload --region "$REGION" --osm --save-osm "out/$REGION/osm-overpass.json" --out "out/$REGION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: directory-${{ github.event.inputs.region || 'chicago' }}
+          path: tools/directory-loader/out/
+          retention-days: 30
